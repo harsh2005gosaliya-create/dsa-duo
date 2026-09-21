@@ -280,7 +280,7 @@ export function nextReviewInterval(index: number, confidence: number) {
   let i = Math.min(index, base.length - 1);
   if (confidence <= 2) i = Math.max(0, i - 1);
   if (confidence >= 5) i = Math.min(base.length - 1, i + 1);
-  return base[i];
+  return base[i] ?? 7;
 }
 
 export function greeting(d = new Date()) {
