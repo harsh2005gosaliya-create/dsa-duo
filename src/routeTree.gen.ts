@@ -20,11 +20,11 @@ import { Route as AuthenticatedDuoRouteImport } from './routes/_authenticated/du
 import { Route as AuthenticatedMissionRouteImport } from './routes/_authenticated/mission'
 import { Route as AuthenticatedMockOaRouteImport } from './routes/_authenticated/mock-oa'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
-import { Route as AuthenticatedProblemsRouteImport } from './routes/_authenticated/problems'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedReviewRouteImport } from './routes/_authenticated/review'
 import { Route as AuthenticatedRoadmapRouteImport } from './routes/_authenticated/roadmap'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedProblemsIndexRouteImport } from './routes/_authenticated/problems.index'
 import { Route as AuthenticatedProblemsIdRouteImport } from './routes/_authenticated/problems.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -82,11 +82,6 @@ const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedProblemsRoute = AuthenticatedProblemsRouteImport.update({
-  id: '/problems',
-  path: '/problems',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -107,10 +102,16 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedProblemsIndexRoute =
+  AuthenticatedProblemsIndexRouteImport.update({
+    id: '/problems/',
+    path: '/problems/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedProblemsIdRoute = AuthenticatedProblemsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AuthenticatedProblemsRoute,
+  id: '/problems/$id',
+  path: '/problems/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -124,12 +125,12 @@ export interface FileRoutesByFullPath {
   '/mission': typeof AuthenticatedMissionRoute
   '/mock-oa': typeof AuthenticatedMockOaRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
-  '/problems': typeof AuthenticatedProblemsRouteWithChildren
   '/profile': typeof AuthenticatedProfileRoute
   '/review': typeof AuthenticatedReviewRoute
   '/roadmap': typeof AuthenticatedRoadmapRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/problems/$id': typeof AuthenticatedProblemsIdRoute
+  '/problems/': typeof AuthenticatedProblemsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -142,12 +143,12 @@ export interface FileRoutesByTo {
   '/mission': typeof AuthenticatedMissionRoute
   '/mock-oa': typeof AuthenticatedMockOaRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
-  '/problems': typeof AuthenticatedProblemsRouteWithChildren
   '/profile': typeof AuthenticatedProfileRoute
   '/review': typeof AuthenticatedReviewRoute
   '/roadmap': typeof AuthenticatedRoadmapRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/problems/$id': typeof AuthenticatedProblemsIdRoute
+  '/problems': typeof AuthenticatedProblemsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -162,12 +163,12 @@ export interface FileRoutesById {
   '/_authenticated/mission': typeof AuthenticatedMissionRoute
   '/_authenticated/mock-oa': typeof AuthenticatedMockOaRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
-  '/_authenticated/problems': typeof AuthenticatedProblemsRouteWithChildren
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/review': typeof AuthenticatedReviewRoute
   '/_authenticated/roadmap': typeof AuthenticatedRoadmapRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/problems/$id': typeof AuthenticatedProblemsIdRoute
+  '/_authenticated/problems/': typeof AuthenticatedProblemsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -182,12 +183,12 @@ export interface FileRouteTypes {
     | '/mission'
     | '/mock-oa'
     | '/onboarding'
-    | '/problems'
     | '/profile'
     | '/review'
     | '/roadmap'
     | '/settings'
     | '/problems/$id'
+    | '/problems/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -200,12 +201,12 @@ export interface FileRouteTypes {
     | '/mission'
     | '/mock-oa'
     | '/onboarding'
-    | '/problems'
     | '/profile'
     | '/review'
     | '/roadmap'
     | '/settings'
     | '/problems/$id'
+    | '/problems'
   id:
     | '__root__'
     | '/'
@@ -219,12 +220,12 @@ export interface FileRouteTypes {
     | '/_authenticated/mission'
     | '/_authenticated/mock-oa'
     | '/_authenticated/onboarding'
-    | '/_authenticated/problems'
     | '/_authenticated/profile'
     | '/_authenticated/review'
     | '/_authenticated/roadmap'
     | '/_authenticated/settings'
     | '/_authenticated/problems/$id'
+    | '/_authenticated/problems/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -313,13 +314,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/problems': {
-      id: '/_authenticated/problems'
-      path: '/problems'
-      fullPath: '/problems'
-      preLoaderRoute: typeof AuthenticatedProblemsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/profile': {
       id: '/_authenticated/profile'
       path: '/profile'
@@ -348,28 +342,22 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/problems/': {
+      id: '/_authenticated/problems/'
+      path: '/problems'
+      fullPath: '/problems/'
+      preLoaderRoute: typeof AuthenticatedProblemsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/problems/$id': {
       id: '/_authenticated/problems/$id'
-      path: '/$id'
+      path: '/problems/$id'
       fullPath: '/problems/$id'
       preLoaderRoute: typeof AuthenticatedProblemsIdRouteImport
-      parentRoute: typeof AuthenticatedProblemsRoute
+      parentRoute: typeof AuthenticatedRouteRoute
     }
   }
 }
-
-interface AuthenticatedProblemsRouteChildren {
-  AuthenticatedProblemsIdRoute: typeof AuthenticatedProblemsIdRoute
-}
-
-const AuthenticatedProblemsRouteChildren: AuthenticatedProblemsRouteChildren = {
-  AuthenticatedProblemsIdRoute: AuthenticatedProblemsIdRoute,
-}
-
-const AuthenticatedProblemsRouteWithChildren =
-  AuthenticatedProblemsRoute._addFileChildren(
-    AuthenticatedProblemsRouteChildren,
-  )
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAchievementsRoute: typeof AuthenticatedAchievementsRoute
@@ -379,11 +367,12 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMissionRoute: typeof AuthenticatedMissionRoute
   AuthenticatedMockOaRoute: typeof AuthenticatedMockOaRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
-  AuthenticatedProblemsRoute: typeof AuthenticatedProblemsRouteWithChildren
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedReviewRoute: typeof AuthenticatedReviewRoute
   AuthenticatedRoadmapRoute: typeof AuthenticatedRoadmapRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedProblemsIdRoute: typeof AuthenticatedProblemsIdRoute
+  AuthenticatedProblemsIndexRoute: typeof AuthenticatedProblemsIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -394,11 +383,12 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMissionRoute: AuthenticatedMissionRoute,
   AuthenticatedMockOaRoute: AuthenticatedMockOaRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
-  AuthenticatedProblemsRoute: AuthenticatedProblemsRouteWithChildren,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedReviewRoute: AuthenticatedReviewRoute,
   AuthenticatedRoadmapRoute: AuthenticatedRoadmapRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedProblemsIdRoute: AuthenticatedProblemsIdRoute,
+  AuthenticatedProblemsIndexRoute: AuthenticatedProblemsIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
