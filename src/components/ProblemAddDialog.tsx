@@ -38,12 +38,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 interface ProblemAddDialogProps {
   trigger?: React.ReactNode;
   defaultShareWithDuo?: boolean;
+  defaultBonus?: boolean;
+  targetDate?: string;
   onProblemAdded?: (problemId: string) => void;
 }
 
 export function ProblemAddDialog({
   trigger,
   defaultShareWithDuo = true,
+  defaultBonus = false,
+  targetDate,
   onProblemAdded,
 }: ProblemAddDialogProps) {
   const [open, setOpen] = useState(false);
@@ -54,6 +58,8 @@ export function ProblemAddDialog({
   const [topic, setTopic] = useState<string>("Arrays");
   const [pattern, setPattern] = useState("");
   const [description, setDescription] = useState("");
+  const [isBonus, setIsBonus] = useState(defaultBonus);
+  const [shareDate, setShareDate] = useState(targetDate || todayISO());
   const [shareWithDuo, setShareWithDuo] = useState(defaultShareWithDuo);
   const [duoMessage, setDuoMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -88,6 +94,10 @@ export function ProblemAddDialog({
 
     setBusy(true);
     try {
+      const finalTags: string[] = isBonus ? ["Bonus"] : [];
+      const prefix = isBonus ? "[Extra Challenge] " : "";
+      const finalMsg = duoMessage.trim() ? `${prefix}${duoMessage.trim()}` : isBonus ? "[Extra Challenge]" : undefined;
+
       // 1. Insert problem
       const { data: newProblem, error: problemErr } = await supabase
         .from("problems")
@@ -99,6 +109,7 @@ export function ProblemAddDialog({
           topic,
           pattern: pattern.trim() || null,
           description: description.trim() || null,
+          tags: finalTags,
           created_by: user.id,
         })
         .select("id, title")
@@ -112,8 +123,8 @@ export function ProblemAddDialog({
           fromUser: user.id,
           toUser: friendId,
           problemId: newProblem.id,
-          message: duoMessage.trim() || undefined,
-          shareDate: todayISO(),
+          message: finalMsg,
+          shareDate: shareDate || todayISO(),
         });
       }
 
@@ -124,7 +135,9 @@ export function ProblemAddDialog({
 
       toast.success(
         shareWithDuo && friendId
-          ? `Added "${newProblem.title}" and shared with ${friendName} for today!`
+          ? isBonus
+            ? `Added "${newProblem.title}" as an Extra Challenge for ${friendName}!`
+            : `Added "${newProblem.title}" and shared with ${friendName}!`
           : `Added "${newProblem.title}" to problem list!`
       );
 
@@ -264,26 +277,55 @@ export function ProblemAddDialog({
 
           {/* Share with Duo Partner option */}
           {friendId ? (
-            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3.5 space-y-2.5">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="share-duo"
-                  checked={shareWithDuo}
-                  onCheckedChange={(checked) => setShareWithDuo(!!checked)}
-                />
-                <Label
-                  htmlFor="share-duo"
-                  className="text-xs font-semibold cursor-pointer text-foreground flex items-center gap-1.5"
-                >
-                  <Send className="size-3.5 text-primary" />
-                  Assign to Today's Mission for {friendName}
-                </Label>
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3.5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="share-duo"
+                    checked={shareWithDuo}
+                    onCheckedChange={(checked) => setShareWithDuo(!!checked)}
+                  />
+                  <Label
+                    htmlFor="share-duo"
+                    className="text-xs font-semibold cursor-pointer text-foreground flex items-center gap-1.5"
+                  >
+                    <Send className="size-3.5 text-primary" />
+                    Share with {friendName}
+                  </Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="share-bonus"
+                    checked={isBonus}
+                    onCheckedChange={(checked) => setIsBonus(!!checked)}
+                  />
+                  <Label
+                    htmlFor="share-bonus"
+                    className="text-xs font-semibold cursor-pointer text-amber-500 flex items-center gap-1"
+                  >
+                    <Sparkles className="size-3" />
+                    Extra / Bonus Problem
+                  </Label>
+                </div>
               </div>
 
               {shareWithDuo && (
-                <div className="pt-1">
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="share-date" className="text-[11px] text-muted-foreground shrink-0">
+                      Mission Date:
+                    </Label>
+                    <Input
+                      id="share-date"
+                      type="date"
+                      value={shareDate}
+                      onChange={(e) => setShareDate(e.target.value)}
+                      className="h-7 text-xs font-mono w-auto"
+                    />
+                  </div>
                   <Input
-                    placeholder={`Note for ${friendName} (e.g. "Focus on O(1) space approach!")`}
+                    placeholder={`Note for ${friendName} (e.g. "Try O(1) extra space!")`}
                     value={duoMessage}
                     onChange={(e) => setDuoMessage(e.target.value)}
                     className="h-8 text-xs bg-background/70"

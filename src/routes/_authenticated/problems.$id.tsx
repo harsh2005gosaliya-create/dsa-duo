@@ -222,7 +222,7 @@ function ProblemDetailPage() {
       <div className="text-center py-12">
         <h2 className="text-xl font-bold">Problem not found</h2>
         <Button asChild className="mt-4">
-          <Link to="/problems">Back to Problem Library</Link>
+          <Link to="/problems">Back to Past Missions</Link>
         </Button>
       </div>
     );

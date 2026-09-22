@@ -1,32 +1,31 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import {
+  Calendar,
   CheckCircle2,
+  Clock,
   ExternalLink,
-  Filter,
+  History,
   Plus,
   Search,
   Send,
   Sparkles,
+  Trophy,
+  Users,
 } from "lucide-react";
-import { toast } from "sonner";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useDuo } from "@/hooks/useForge";
-import { shareProblem } from "@/lib/social";
-import {
-  DIFFICULTIES,
-  DIFFICULTY_CLASS,
-  PLATFORMS,
-  TOPICS,
-  todayISO,
-} from "@/lib/constants";
+import { useShares } from "@/hooks/useSocial";
+import { DIFFICULTY_CLASS, todayISO } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -34,314 +33,336 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { ProblemAddDialog } from "@/components/ProblemAddDialog";
 
 export const Route = createFileRoute("/_authenticated/problems/")({
-  component: ProblemsPage,
+  component: PastMissionsPage,
 });
 
-function ProblemsPage() {
+function PastMissionsPage() {
   const { user } = useAuth();
   const { data: duoData } = useDuo();
-  const queryClient = useQueryClient();
+  const { data: sharesData, isLoading: sharesLoading } = useShares();
 
+  const friend = duoData?.friendProfile;
   const friendId = duoData?.friendId;
-  const friendName = duoData?.friendProfile?.name || duoData?.friendProfile?.username || "Partner";
+  const friendName = friend?.name || friend?.username || "Partner";
 
-  // Filter states
   const [search, setSearch] = useState("");
-  const [platformFilter, setPlatformFilter] = useState("all");
-  const [difficultyFilter, setDifficultyFilter] = useState("all");
-  const [topicFilter, setTopicFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
-  // Fetch all problems
-  const { data: problems = [], isLoading: probLoading } = useQuery({
-    queryKey: ["problems"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("problems")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
+  const allShares = sharesData?.all ?? [];
 
-  // Fetch user submissions and friend submissions to show status
-  const { data: userSubmissions = [] } = useQuery({
-    queryKey: ["all-submissions", user?.id, friendId],
-    enabled: !!user,
+  // Extract all unique problem IDs
+  const problemIds = Array.from(new Set(allShares.map((s) => s.problem_id).filter(Boolean)));
+
+  // Fetch all submissions for these problems to compute completion status
+  const { data: submissions = [] } = useQuery({
+    queryKey: ["history-submissions", problemIds, user?.id, friendId],
+    enabled: problemIds.length > 0 && !!user,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("submissions")
-        .select("id, user_id, problem_id");
+        .select("id, user_id, problem_id, created_at")
+        .in("problem_id", problemIds);
       if (error) throw error;
       return data ?? [];
     },
   });
 
-  // Fetch today's shares to know what is already shared today
-  const { data: todayShares = [] } = useQuery({
-    queryKey: ["today-shares", user?.id, todayISO()],
-    enabled: !!user,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("shared_problems")
-        .select("id, problem_id")
-        .eq("share_date", todayISO())
-        .or(`from_user.eq.${user!.id},to_user.eq.${user!.id}`);
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
+  const isSolvedByMe = (probId: string) =>
+    submissions.some((s) => s.problem_id === probId && s.user_id === user?.id);
 
-  const sharedTodayIds = new Set(todayShares.map((s) => s.problem_id));
-  const mySolvedIds = new Set(
-    userSubmissions.filter((s) => s.user_id === user?.id).map((s) => s.problem_id)
-  );
-  const friendSolvedIds = new Set(
-    userSubmissions.filter((s) => s.user_id === friendId).map((s) => s.problem_id)
-  );
+  const isSolvedByFriend = (probId: string) =>
+    submissions.some((s) => s.problem_id === probId && s.user_id === friendId);
 
-  // Filtered problems list
-  const filteredProblems = useMemo(() => {
-    return problems.filter((p) => {
-      if (platformFilter !== "all" && p.platform !== platformFilter) return false;
-      if (difficultyFilter !== "all" && p.difficulty !== difficultyFilter) return false;
-      if (topicFilter !== "all" && p.topic !== topicFilter) return false;
+  // Group problems by date
+  const groupedByDate = useMemo(() => {
+    const groups = new Map<string, typeof allShares>();
+
+    const filtered = allShares.filter((item) => {
+      const p = item.problem;
+      if (!p) return false;
+
+      // Status filter
+      const mineSolved = isSolvedByMe(p.id);
+      const friendSolved = isSolvedByFriend(p.id);
+
+      if (statusFilter === "both_solved" && (!mineSolved || !friendSolved)) return false;
+      if (statusFilter === "pending_mine" && mineSolved) return false;
+      if (statusFilter === "pending_friend" && friendSolved) return false;
+
+      // Search filter
       if (search.trim()) {
-        const query = search.toLowerCase();
-        const matchesTitle = p.title.toLowerCase().includes(query);
-        const matchesTopic = p.topic.toLowerCase().includes(query);
-        const matchesPattern = p.pattern?.toLowerCase().includes(query);
-        if (!matchesTitle && !matchesTopic && !matchesPattern) return false;
+        const q = search.toLowerCase();
+        const matchesTitle = p.title.toLowerCase().includes(q);
+        const matchesTopic = p.topic.toLowerCase().includes(q);
+        const matchesMsg = item.message?.toLowerCase().includes(q);
+        if (!matchesTitle && !matchesTopic && !matchesMsg) return false;
       }
       return true;
     });
-  }, [problems, platformFilter, difficultyFilter, topicFilter, search]);
 
-  const handleShareProblem = async (problemId: string, problemTitle: string) => {
-    if (!user || !friendId) return;
-    try {
-      await shareProblem({
-        fromUser: user.id,
-        toUser: friendId,
-        problemId,
-        shareDate: todayISO(),
-      });
-      await queryClient.invalidateQueries({ queryKey: ["today-shares"] });
-      await queryClient.invalidateQueries({ queryKey: ["shares"] });
-      await queryClient.invalidateQueries({ queryKey: ["mission"] });
-      toast.success(`Shared "${problemTitle}" with ${friendName} for today's mission!`);
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to share.");
-    }
+    filtered.forEach((item) => {
+      const date = item.share_date || "Unknown";
+      if (!groups.has(date)) groups.set(date, []);
+      groups.get(date)!.push(item);
+    });
+
+    // Sort dates descending
+    return Array.from(groups.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [allShares, statusFilter, search, submissions]);
+
+  const today = todayISO();
+
+  const formatDateLabel = (dateStr: string) => {
+    if (dateStr === today) return "Today's Mission";
+    const d = new Date(dateStr + "T00:00:00Z");
+    const yesterday = new Date();
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+    if (dateStr === yesterday.toISOString().slice(0, 10)) return "Yesterday";
+    return d.toLocaleDateString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
   };
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Problem Library"
-        description="All practice problems curated and added by you and your partner. Add new problems via URL or assign existing ones to today's mission."
-        action={<ProblemAddDialog defaultShareWithDuo={!!friendId} />}
+        title="Past Missions & History"
+        description="Every mutual practice question shared between you and your partner, archived by date with completion history."
+        action={
+          <div className="flex gap-2">
+            <ProblemAddDialog
+              defaultShareWithDuo={!!friendId}
+              trigger={
+                <Button size="sm" className="gap-2">
+                  <Plus className="size-4" />
+                  Add & Share Problem
+                </Button>
+              }
+            />
+          </div>
+        }
       />
 
-      {/* SEARCH AND FILTERS BAR */}
+      {/* FILTER & SEARCH BAR */}
       <Card className="border-border bg-card/60 backdrop-blur">
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {/* Search Input */}
-            <div className="relative">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="relative sm:col-span-2">
               <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
               <Input
-                placeholder="Search title, topic, pattern..."
+                placeholder="Search previous problems, topics, notes..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9 text-xs h-9"
               />
             </div>
 
-            {/* Platform Filter */}
-            <Select value={platformFilter} onValueChange={setPlatformFilter}>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="text-xs h-9">
-                <SelectValue placeholder="Platform" />
+                <SelectValue placeholder="Completion Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Platforms</SelectItem>
-                {PLATFORMS.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {p}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {/* Difficulty Filter */}
-            <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
-              <SelectTrigger className="text-xs h-9">
-                <SelectValue placeholder="Difficulty" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Difficulties</SelectItem>
-                {DIFFICULTIES.map((d) => (
-                  <SelectItem key={d} value={d}>
-                    {d}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {/* Topic Filter */}
-            <Select value={topicFilter} onValueChange={setTopicFilter}>
-              <SelectTrigger className="text-xs h-9">
-                <SelectValue placeholder="Topic" />
-              </SelectTrigger>
-              <SelectContent className="max-h-56">
-                <SelectItem value="all">All Topics</SelectItem>
-                {TOPICS.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {t}
-                  </SelectItem>
-                ))}
+                <SelectItem value="all">All Missions</SelectItem>
+                <SelectItem value="both_solved">Conquered by Both</SelectItem>
+                <SelectItem value="pending_mine">Needs My Solution</SelectItem>
+                {friendId && (
+                  <SelectItem value="pending_friend">Waiting on {friendName}</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
         </CardContent>
       </Card>
 
-      {/* PROBLEMS LIST */}
-      {probLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <Skeleton key={i} className="h-20 w-full" />
+      {/* MISSIONS ARCHIVE FEED */}
+      {sharesLoading ? (
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-32 w-full" />
           ))}
         </div>
-      ) : filteredProblems.length === 0 ? (
+      ) : groupedByDate.length === 0 ? (
         <Card className="border-dashed p-12 text-center">
           <div className="mx-auto mb-3 grid size-12 place-items-center rounded-xl bg-primary/10 text-primary">
-            <Sparkles className="size-6" />
+            <History className="size-6" />
           </div>
-          <h3 className="text-base font-semibold">No problems found</h3>
+          <h3 className="text-base font-semibold">No past missions found</h3>
           <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
-            {problems.length === 0
-              ? "Your library is empty. Paste a LeetCode or GFG link above to add your first question."
-              : "No problems match your current search and filter criteria."}
+            {allShares.length === 0
+              ? "You haven't shared any problems yet. Start by sharing today's mission with your friend."
+              : "No missions match your search or filter."}
           </p>
           <div className="mt-4 flex justify-center">
-            <ProblemAddDialog defaultShareWithDuo={!!friendId} />
+            <ProblemAddDialog
+              defaultShareWithDuo={!!friendId}
+              trigger={
+                <Button size="sm" className="gap-1.5">
+                  <Plus className="size-4" /> Share a Problem
+                </Button>
+              }
+            />
           </div>
         </Card>
       ) : (
-        <div className="space-y-2.5">
-          <div className="text-xs font-mono text-muted-foreground px-1">
-            Showing {filteredProblems.length} problem{filteredProblems.length !== 1 ? "s" : ""}
-          </div>
-
-          {filteredProblems.map((prob) => {
-            const isMineSolved = mySolvedIds.has(prob.id);
-            const isFriendSolved = friendSolvedIds.has(prob.id);
-            const isSharedToday = sharedTodayIds.has(prob.id);
+        <div className="space-y-6">
+          {groupedByDate.map(([date, items]) => {
+            const totalOnDate = items.length;
+            const mySolved = items.filter((i) => isSolvedByMe(i.problem_id)).length;
+            const friendSolved = items.filter((i) => isSolvedByFriend(i.problem_id)).length;
+            const allSolved = totalOnDate > 0 && mySolved === totalOnDate && friendSolved === totalOnDate;
 
             return (
-              <Card
-                key={prob.id}
-                className="border-border hover:border-border/80 transition-colors"
-              >
-                <CardContent className="p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span
-                          className={cn(
-                            "rounded border px-1.5 py-0.5 text-[10px] font-medium font-mono",
-                            DIFFICULTY_CLASS[prob.difficulty ?? "Easy"]
-                          )}
-                        >
-                          {prob.difficulty}
-                        </span>
-                        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground font-medium">
-                          {prob.platform}
-                        </span>
-                        <span className="text-xs text-muted-foreground">{prob.topic}</span>
-                        {prob.pattern && (
-                          <span className="text-xs text-muted-foreground">· {prob.pattern}</span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Link
-                          to="/problems/$id"
-                          params={{ id: prob.id }}
-                          className="text-sm font-semibold hover:text-primary transition-colors truncate"
-                        >
-                          {prob.title}
-                        </Link>
-                        {prob.url && (
-                          <a
-                            href={prob.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-muted-foreground hover:text-foreground"
-                            title="Open external problem link"
-                          >
-                            <ExternalLink className="size-3" />
-                          </a>
-                        )}
-                      </div>
-
-                      {/* Status Badges */}
-                      <div className="flex items-center gap-3 pt-0.5 text-[11px] font-mono">
-                        <span className="flex items-center gap-1">
-                          You:
-                          {isMineSolved ? (
-                            <span className="text-emerald-500 font-semibold flex items-center gap-0.5">
-                              <CheckCircle2 className="size-3" /> Solved
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">Unsolved</span>
-                          )}
-                        </span>
-
-                        {friendId && (
-                          <span className="flex items-center gap-1">
-                            {friendName}:
-                            {isFriendSolved ? (
-                              <span className="text-emerald-500 font-semibold flex items-center gap-0.5">
-                                <CheckCircle2 className="size-3" /> Solved
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">Unsolved</span>
-                            )}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {friendId && (
-                        <Button
-                          size="sm"
-                          variant={isSharedToday ? "secondary" : "outline"}
-                          disabled={isSharedToday}
-                          onClick={() => handleShareProblem(prob.id, prob.title)}
-                          className="h-8 text-xs gap-1.5"
-                        >
-                          <Send className="size-3" />
-                          {isSharedToday ? "In Today's Mission" : "Assign for Today"}
-                        </Button>
-                      )}
-
-                      <Button asChild size="sm" variant="default" className="h-8 text-xs">
-                        <Link to="/problems/$id" params={{ id: prob.id }}>
-                          {isMineSolved ? "View / Compare" : "Solve"}
-                        </Link>
-                      </Button>
-                    </div>
+              <div key={date} className="space-y-3">
+                {/* DATE HEADER */}
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/80 pb-2 px-1">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="size-4 text-primary" />
+                    <h2 className="text-sm font-bold tracking-tight">
+                      {formatDateLabel(date)}
+                    </h2>
+                    <span className="text-xs font-mono text-muted-foreground">({date})</span>
                   </div>
-                </CardContent>
-              </Card>
+
+                  <div className="flex items-center gap-3 text-xs font-mono">
+                    <span className="text-muted-foreground">
+                      You: {mySolved}/{totalOnDate}
+                    </span>
+                    {friendId && (
+                      <span className="text-muted-foreground">
+                        {friendName}: {friendSolved}/{totalOnDate}
+                      </span>
+                    )}
+                    {allSolved && (
+                      <Badge variant="secondary" className="text-emerald-500 bg-emerald-500/10 border-emerald-500/20 text-[10px] gap-1">
+                        <Trophy className="size-3" /> Both Solved
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+
+                {/* PROBLEMS FOR THIS DATE */}
+                <div className="space-y-2.5">
+                  {items.map((item) => {
+                    const p = item.problem;
+                    if (!p) return null;
+
+                    const mineDone = isSolvedByMe(p.id);
+                    const friendDone = isSolvedByFriend(p.id);
+                    const isFromFriend = item.to_user === user?.id;
+                    const isBonus =
+                      item.message?.includes("[Extra Challenge]") ||
+                      item.message?.includes("[Bonus]") ||
+                      p.tags?.includes("Bonus");
+
+                    return (
+                      <Card
+                        key={item.id}
+                        className={cn(
+                          "border transition-colors",
+                          isBonus ? "border-amber-500/40 bg-amber-500/5" : "border-border"
+                        )}
+                      >
+                        <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {isBonus && (
+                                <Badge className="bg-amber-500/20 text-amber-500 border-amber-500/30 text-[10px] gap-1">
+                                  <Sparkles className="size-3" /> Extra Challenge
+                                </Badge>
+                              )}
+                              <span
+                                className={cn(
+                                  "rounded border px-1.5 py-0.5 text-[10px] font-medium font-mono",
+                                  DIFFICULTY_CLASS[p.difficulty ?? "Easy"]
+                                )}
+                              >
+                                {p.difficulty}
+                              </span>
+                              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                {p.platform}
+                              </span>
+                              <span className="text-xs text-muted-foreground">{p.topic}</span>
+                              <Badge variant="outline" className="text-[10px]">
+                                {isFromFriend ? `From ${friendName}` : "Sent by you"}
+                              </Badge>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <Link
+                                to="/problems/$id"
+                                params={{ id: p.id }}
+                                className="text-sm font-semibold hover:text-primary transition-colors truncate"
+                              >
+                                {p.title}
+                              </Link>
+                              {p.url && (
+                                <a
+                                  href={p.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-muted-foreground hover:text-foreground"
+                                  title="Open external problem link"
+                                >
+                                  <ExternalLink className="size-3" />
+                                </a>
+                              )}
+                            </div>
+
+                            {item.message && (
+                              <p className="text-xs text-muted-foreground italic border-l-2 border-primary/40 pl-2">
+                                "{item.message.replace(/^\[Extra Challenge\]\s*/, "")}"
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Dual Status & Action */}
+                          <div className="flex items-center gap-3 text-xs font-mono">
+                            <div className="flex items-center gap-1">
+                              <span className="text-muted-foreground">You:</span>
+                              {mineDone ? (
+                                <span className="text-emerald-500 font-semibold flex items-center gap-0.5">
+                                  <CheckCircle2 className="size-3.5" /> Solved
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground flex items-center gap-0.5">
+                                  <Clock className="size-3.5" /> Pending
+                                </span>
+                              )}
+                            </div>
+
+                            {friendId && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-muted-foreground">{friendName}:</span>
+                                {friendDone ? (
+                                  <span className="text-emerald-500 font-semibold flex items-center gap-0.5">
+                                    <CheckCircle2 className="size-3.5" /> Solved
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground flex items-center gap-0.5">
+                                    <Clock className="size-3.5" /> Pending
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            <Button asChild size="sm" variant={mineDone ? "secondary" : "default"} className="h-8 text-xs">
+                              <Link to="/problems/$id" params={{ id: p.id }}>
+                                {mineDone ? "Review & Compare" : "Solve"}
+                              </Link>
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
             );
           })}
         </div>

@@ -11,21 +11,24 @@ import {
   Sparkles,
   Trophy,
   Users,
-  MessageSquare,
+  Zap,
   ArrowRight,
   Code2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useDuo, useProfile } from "@/hooks/useForge";
 import { useShares } from "@/hooks/useSocial";
+import { sendSignal } from "@/lib/social";
 import { DIFFICULTY_CLASS, todayISO } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProblemAddDialog } from "@/components/ProblemAddDialog";
 
@@ -75,7 +78,7 @@ function MissionPage() {
   const isSolvedByFriend = (probId: string) =>
     submissions.some((s) => s.problem_id === probId && s.user_id === friendId);
 
-  // Stats for the day
+  // Dynamic count of problems (no hardcoded 3)
   const totalMissionProblems = dateShares.length;
   const mySolvedCount = dateShares.filter((s) => isSolvedByMe(s.problem_id)).length;
   const friendSolvedCount = dateShares.filter((s) => isSolvedByFriend(s.problem_id)).length;
@@ -85,6 +88,16 @@ function MissionPage() {
     friendSolvedCount === totalMissionProblems;
 
   const isToday = selectedDate === todayISO();
+
+  const handleNudge = async (probTitle: string) => {
+    if (!user || !friendId) return;
+    try {
+      await sendSignal(user.id, friendId, "nudge", `🔥 Time to solve "${probTitle}" for today's mission!`);
+      toast.success(`Nudge sent to ${friendName}!`);
+    } catch {
+      toast.error("Could not send nudge.");
+    }
+  };
 
   if (duoLoading || sharesLoading) {
     return (
@@ -103,8 +116,8 @@ function MissionPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Today's Duo Mission"
-          description="A peer-study training day consists of problems you share with your partner and problems they share with you."
+          title="Daily Duo Mission"
+          description="Your daily mission consists exclusively of questions you and your study partner share with each other."
         />
         <Card className="border-dashed border-border p-8 text-center">
           <div className="mx-auto mb-3 grid size-12 place-items-center rounded-xl bg-primary/10 text-primary">
@@ -126,63 +139,83 @@ function MissionPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      {/* HEADER WITH DYNAMIC ACTIONS */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Daily Mission</h1>
-          <p className="text-sm text-muted-foreground">
-            Mutual daily grind with <span className="font-semibold text-foreground">@{friend?.username}</span>.
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+            Mutual grind with <span className="font-semibold text-foreground">@{friend?.username}</span>.
             Solve, record intuition, and compare implementations.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Input
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
             className="w-auto font-mono text-xs h-9 bg-card"
           />
+
           <ProblemAddDialog
             defaultShareWithDuo={true}
+            defaultBonus={false}
+            targetDate={selectedDate}
             trigger={
-              <Button size="sm" className="gap-2">
+              <Button size="sm" className="gap-1.5 h-9 text-xs">
                 <Plus className="size-4" />
-                Share Problem for Today
+                Add Problem
+              </Button>
+            }
+          />
+
+          <ProblemAddDialog
+            defaultShareWithDuo={true}
+            defaultBonus={true}
+            targetDate={selectedDate}
+            trigger={
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 h-9 text-xs border-amber-500/40 text-amber-500 hover:bg-amber-500/10"
+              >
+                <Sparkles className="size-3.5" />
+                + Extra Problem
               </Button>
             }
           />
         </div>
       </div>
 
-      {/* MUTUAL MISSION PROGRESS CARD */}
+      {/* MUTUAL MISSION STATUS BANNER */}
       <Card className="border-border bg-gradient-to-r from-card via-card to-primary/5">
-        <CardContent className="p-5">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <div className="grid size-10 place-items-center rounded-lg bg-primary text-primary-foreground">
+              <div className="grid size-10 place-items-center rounded-lg bg-primary text-primary-foreground shrink-0">
                 <Flame className="size-5" />
               </div>
               <div>
                 <div className="text-sm font-semibold">
-                  {isToday ? "Today's Mission Overview" : `Mission for ${selectedDate}`}
+                  {isToday ? "Today's Mission Status" : `Mission for ${selectedDate}`}
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {totalMissionProblems === 0
-                    ? "No problems assigned for this date yet."
-                    : `${totalMissionProblems} problem${totalMissionProblems > 1 ? "s" : ""} on the docket.`}
+                    ? "No questions assigned yet for this date. Add one or pick an extra challenge above!"
+                    : `${totalMissionProblems} question${totalMissionProblems > 1 ? "s" : ""} on the docket.`}
                 </div>
               </div>
             </div>
 
             {totalMissionProblems > 0 && (
-              <div className="flex items-center gap-4 text-xs font-mono">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3 text-xs font-mono">
+                <div className="flex items-center gap-1.5">
                   <span className="text-muted-foreground">You:</span>
                   <Badge variant={mySolvedCount === totalMissionProblems ? "default" : "outline"}>
                     {mySolvedCount}/{totalMissionProblems} Solved
                   </Badge>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <span className="text-muted-foreground">{friendName}:</span>
                   <Badge variant={friendSolvedCount === totalMissionProblems ? "default" : "outline"}>
                     {friendSolvedCount}/{totalMissionProblems} Solved
@@ -193,10 +226,10 @@ function MissionPage() {
           </div>
 
           {allMutualSolved && (
-            <div className="mt-4 flex items-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-emerald-500 text-xs font-medium">
+            <div className="mt-3 flex items-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-emerald-500 text-xs font-medium">
               <Trophy className="size-4 shrink-0" />
               <span>
-                Awesome teamwork! Both you and {friendName} have conquered all mutual mission problems for this day!
+                Awesome teamwork! Both you and {friendName} have finished every mission question for this date!
               </span>
             </div>
           )}
@@ -207,25 +240,22 @@ function MissionPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* SENT BY FRIEND */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-2">
               <div className="size-2 rounded-full bg-primary" />
-              <h2 className="text-base font-semibold">Sent by {friendName}</h2>
+              <h2 className="text-sm sm:text-base font-semibold">Sent by {friendName}</h2>
             </div>
             <span className="text-xs font-mono text-muted-foreground">
-              {sentByFriend.length} problem{sentByFriend.length !== 1 ? "s" : ""}
+              {sentByFriend.length} question{sentByFriend.length !== 1 ? "s" : ""}
             </span>
           </div>
 
           {sentByFriend.length === 0 ? (
-            <Card className="border-dashed p-6 text-center text-xs text-muted-foreground">
-              {friendName} hasn't assigned you any questions for this date yet.
-              <br />
-              Nudge them on the{" "}
-              <Link to="/duo" className="text-primary underline">
-                Duo page
-              </Link>
-              !
+            <Card className="border-dashed p-8 text-center text-xs text-muted-foreground space-y-3">
+              <div>{friendName} hasn't assigned you any questions for this date yet.</div>
+              <Button asChild variant="outline" size="sm" className="text-xs">
+                <Link to="/duo">Nudge {friendName} on Duo</Link>
+              </Button>
             </Card>
           ) : (
             <div className="space-y-3">
@@ -236,7 +266,7 @@ function MissionPage() {
                   isMineSolved={isSolvedByMe(item.problem_id)}
                   isFriendSolved={isSolvedByFriend(item.problem_id)}
                   friendName={friendName}
-                  isReceived={true}
+                  onNudge={() => handleNudge(item.problem?.title || "problem")}
                 />
               ))}
             </div>
@@ -245,26 +275,27 @@ function MissionPage() {
 
         {/* SHARED BY ME */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-2">
               <div className="size-2 rounded-full bg-blue-500" />
-              <h2 className="text-base font-semibold">Shared by Me</h2>
+              <h2 className="text-sm sm:text-base font-semibold">Shared by Me</h2>
             </div>
             <span className="text-xs font-mono text-muted-foreground">
-              {sharedByMe.length} problem{sharedByMe.length !== 1 ? "s" : ""}
+              {sharedByMe.length} question{sharedByMe.length !== 1 ? "s" : ""}
             </span>
           </div>
 
           {sharedByMe.length === 0 ? (
-            <Card className="border-dashed p-6 text-center text-xs text-muted-foreground">
-              You haven't assigned any questions to {friendName} for this date.
-              <div className="mt-3">
+            <Card className="border-dashed p-8 text-center text-xs text-muted-foreground space-y-3">
+              <div>You haven't assigned any questions to {friendName} for this date.</div>
+              <div>
                 <ProblemAddDialog
                   defaultShareWithDuo={true}
+                  targetDate={selectedDate}
                   trigger={
-                    <Button size="sm" variant="outline" className="gap-1.5 text-xs">
+                    <Button size="sm" className="gap-1.5 text-xs">
                       <Plus className="size-3.5" />
-                      Pick & Share a Problem
+                      Pick & Share Question
                     </Button>
                   }
                 />
@@ -279,9 +310,21 @@ function MissionPage() {
                   isMineSolved={isSolvedByMe(item.problem_id)}
                   isFriendSolved={isSolvedByFriend(item.problem_id)}
                   friendName={friendName}
-                  isReceived={false}
+                  onNudge={() => handleNudge(item.problem?.title || "problem")}
                 />
               ))}
+
+              <div className="pt-1">
+                <ProblemAddDialog
+                  defaultShareWithDuo={true}
+                  targetDate={selectedDate}
+                  trigger={
+                    <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground border border-dashed border-border hover:text-foreground">
+                      <Plus className="size-3.5 mr-1" /> Add Another Problem for {friendName}
+                    </Button>
+                  }
+                />
+              </div>
             </div>
           )}
         </div>
@@ -295,24 +338,41 @@ function MissionProblemCard({
   isMineSolved,
   isFriendSolved,
   friendName,
-  isReceived,
+  onNudge,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   item: any;
   isMineSolved: boolean;
   isFriendSolved: boolean;
   friendName: string;
-  isReceived: boolean;
+  onNudge: () => void;
 }) {
   const p = item.problem;
   if (!p) return null;
 
+  const isBonus =
+    item.message?.includes("[Extra Challenge]") ||
+    item.message?.includes("[Bonus]") ||
+    p.tags?.includes("Bonus");
+
+  const cleanMessage = item.message?.replace(/^\[Extra Challenge\]\s*/, "");
+
   return (
-    <Card className="border-border hover:border-border/80 transition-colors">
+    <Card
+      className={cn(
+        "border transition-colors",
+        isBonus ? "border-amber-500/30 bg-amber-500/[0.03]" : "border-border"
+      )}
+    >
       <CardContent className="p-4 space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
+              {isBonus && (
+                <Badge className="bg-amber-500/20 text-amber-500 border-amber-500/30 text-[10px] gap-1 font-semibold">
+                  <Sparkles className="size-3" /> Extra Challenge
+                </Badge>
+              )}
               <span
                 className={cn(
                   "rounded border px-1.5 py-0.5 text-[10px] font-medium font-mono",
@@ -336,40 +396,49 @@ function MissionProblemCard({
               </Link>
             </h3>
 
-            {item.message && (
+            {cleanMessage && (
               <p className="mt-1 text-xs text-muted-foreground italic border-l-2 border-primary/40 pl-2">
-                "{item.message}"
+                "{cleanMessage}"
               </p>
             )}
           </div>
         </div>
 
-        {/* REAL-TIME DUAL STATUS BADGES */}
-        <div className="flex items-center justify-between pt-2 border-t border-border/60 text-xs">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
+        {/* REAL-TIME DUAL STATUS BADGES & MOBILE FRIENDLY ACTIONS */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/60 text-xs">
+          <div className="flex items-center gap-3 font-mono text-[11px]">
+            <div className="flex items-center gap-1">
               <span className="text-muted-foreground">You:</span>
               {isMineSolved ? (
-                <span className="flex items-center gap-1 text-emerald-500 font-medium font-mono">
+                <span className="flex items-center gap-1 text-emerald-500 font-medium">
                   <CheckCircle2 className="size-3.5" /> Solved
                 </span>
               ) : (
-                <span className="flex items-center gap-1 text-amber-500 font-mono">
+                <span className="flex items-center gap-1 text-amber-500">
                   <Clock className="size-3.5" /> Pending
                 </span>
               )}
             </div>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               <span className="text-muted-foreground">{friendName}:</span>
               {isFriendSolved ? (
-                <span className="flex items-center gap-1 text-emerald-500 font-medium font-mono">
+                <span className="flex items-center gap-1 text-emerald-500 font-medium">
                   <CheckCircle2 className="size-3.5" /> Solved
                 </span>
               ) : (
-                <span className="flex items-center gap-1 text-muted-foreground font-mono">
-                  <Clock className="size-3.5" /> Pending
-                </span>
+                <div className="flex items-center gap-1">
+                  <span className="flex items-center gap-1 text-muted-foreground">
+                    <Clock className="size-3.5" /> Pending
+                  </span>
+                  <button
+                    onClick={onNudge}
+                    title={`Nudge ${friendName}`}
+                    className="text-amber-500 hover:text-amber-400 p-0.5 rounded transition-colors"
+                  >
+                    <Zap className="size-3 fill-amber-500" />
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -377,7 +446,7 @@ function MissionProblemCard({
           <div className="flex items-center gap-2">
             {p.url && (
               <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-xs">
-                <a href={p.url} target="_blank" rel="noreferrer" title="Solve on external site">
+                <a href={p.url} target="_blank" rel="noreferrer" title="Open source problem">
                   <ExternalLink className="size-3" />
                 </a>
               </Button>

@@ -27,19 +27,17 @@ import { Button } from "@/components/ui/button";
 import { todayISO } from "@/lib/constants";
 import { isSolved } from "@/lib/metrics";
 
+import { History } from "lucide-react";
+
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/mission", label: "Daily Mission", icon: Target },
-  { to: "/problems", label: "Problems", icon: ListChecks },
-  { to: "/duo", label: "Duo", icon: Users },
+  { to: "/problems", label: "Past Missions", icon: History },
+  { to: "/duo", label: "Duo Partner", icon: Users },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
-  { to: "/review", label: "Review", icon: Timer },
-  { to: "/roadmap", label: "Roadmap", icon: RouteIcon },
-  { to: "/mock-oa", label: "Mock OA", icon: Swords },
-  { to: "/achievements", label: "Achievements", icon: Award },
 ] as const;
 
-const MOBILE_NAV = [NAV[0], NAV[1], NAV[2], NAV[3], NAV[4]];
+const MOBILE_NAV = NAV;
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -144,15 +142,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="text-sm font-semibold">DSA Forge</span>
           </div>
           <div className="ml-auto flex items-center gap-2 text-xs sm:gap-3 sm:text-sm">
-            <span className="flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1 font-mono">
+            <span className="flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1 font-mono text-xs" title="Current streak">
               <Flame className="size-3.5 text-primary" />
-              {streak}
+              <span>{streak}d</span>
             </span>
-            <span className="rounded-md border border-border bg-card px-2.5 py-1 font-mono">
-              {doneToday}/{target} <span className="text-muted-foreground">today</span>
-            </span>
-            <span className="hidden rounded-md border border-border bg-card px-2.5 py-1 font-mono sm:inline">
-              OA {score}%
+            <span className="rounded-md border border-border bg-card px-2.5 py-1 font-mono text-xs">
+              <span className="text-foreground font-semibold">{doneToday}</span>
+              <span className="text-muted-foreground ml-1">solved today</span>
             </span>
             <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme">
               {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}

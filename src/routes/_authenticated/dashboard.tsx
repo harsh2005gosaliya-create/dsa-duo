@@ -137,13 +137,28 @@ function DashboardPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <ProblemAddDialog
               defaultShareWithDuo={!!friendId}
+              defaultBonus={false}
               trigger={
                 <Button size="sm" className="gap-1.5">
                   <Plus className="size-4" />
                   Add Problem
+                </Button>
+              }
+            />
+            <ProblemAddDialog
+              defaultShareWithDuo={!!friendId}
+              defaultBonus={true}
+              trigger={
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 border-amber-500/40 text-amber-500 hover:bg-amber-500/10"
+                >
+                  <Sparkles className="size-3.5" />
+                  + Extra Problem
                 </Button>
               }
             />
@@ -233,14 +248,26 @@ function DashboardPage() {
               const mineSolved = isSolvedByMe(p.id);
               const partnerSolved = isSolvedByFriend(p.id);
               const isFromFriend = item.to_user === user?.id;
+              const isBonus =
+                item.message?.includes("[Extra Challenge]") ||
+                item.message?.includes("[Bonus]") ||
+                p.tags?.includes("Bonus");
 
               return (
                 <li
                   key={item.id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-card/60 p-3"
+                  className={cn(
+                    "flex flex-wrap items-center justify-between gap-3 rounded-md border p-3",
+                    isBonus ? "border-amber-500/30 bg-amber-500/[0.03]" : "border-border bg-card/60"
+                  )}
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
+                      {isBonus && (
+                        <Badge className="bg-amber-500/20 text-amber-500 border-amber-500/30 text-[10px] gap-1 font-semibold">
+                          <Sparkles className="size-3" /> Extra Challenge
+                        </Badge>
+                      )}
                       <span
                         className={cn(
                           "rounded border px-1.5 py-0.5 text-[10px] font-medium font-mono",
