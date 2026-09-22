@@ -22,12 +22,27 @@ export const Route = createFileRoute("/auth")({
 
 type Mode = "signin" | "signup" | "forgot";
 
+function friendlyError(message: string) {
+  const m = message.toLowerCase();
+  if (m.includes("weak") || m.includes("pwned"))
+    return "That password shows up in known data breaches. Please pick a less common one.";
+  if (m.includes("invalid login")) return "Wrong email or password.";
+  if (m.includes("email not confirmed"))
+    return "Please confirm your email first — check your inbox for the link.";
+  if (m.includes("already registered") || m.includes("already been registered"))
+    return "That email already has an account. Try signing in instead.";
+  if (m.includes("at least")) return message;
+  return message;
+}
+
 function AuthPage() {
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const { session } = useAuth();
   const navigate = useNavigate();
 
@@ -35,9 +50,17 @@ function AuthPage() {
     if (session) navigate({ to: "/dashboard", replace: true });
   }, [session, navigate]);
 
+  function switchMode(next: Mode) {
+    setMode(next);
+    setError(null);
+    setNotice(null);
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
+    setError(null);
+    setNotice(null);
     try {
       if (mode === "signin") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
