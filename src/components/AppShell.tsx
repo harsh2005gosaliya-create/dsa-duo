@@ -24,19 +24,22 @@ import { useProfile, useTodayMission, useTraining } from "@/hooks/useForge";
 import { computeStreaks, readiness } from "@/lib/metrics";
 import { Button } from "@/components/ui/button";
 
+import { todayISO } from "@/lib/constants";
+import { isSolved } from "@/lib/metrics";
+
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/mission", label: "Daily Mission", icon: Target },
   { to: "/problems", label: "Problems", icon: ListChecks },
-  { to: "/roadmap", label: "Roadmap", icon: RouteIcon },
-  { to: "/review", label: "Review", icon: Timer },
-  { to: "/analytics", label: "Analytics", icon: BarChart3 },
-  { to: "/mock-oa", label: "Mock OA", icon: Swords },
   { to: "/duo", label: "Duo", icon: Users },
+  { to: "/analytics", label: "Analytics", icon: BarChart3 },
+  { to: "/review", label: "Review", icon: Timer },
+  { to: "/roadmap", label: "Roadmap", icon: RouteIcon },
+  { to: "/mock-oa", label: "Mock OA", icon: Swords },
   { to: "/achievements", label: "Achievements", icon: Award },
 ] as const;
 
-const MOBILE_NAV = [NAV[0], NAV[1], NAV[2], NAV[4], NAV[7]];
+const MOBILE_NAV = [NAV[0], NAV[1], NAV[2], NAV[3], NAV[4]];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -64,7 +67,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const attempts = training?.attempts ?? [];
   const streak = computeStreaks(attempts).current;
   const target = profile?.daily_target ?? 3;
-  const doneToday = mission?.completed_count ?? 0;
+  const doneToday = attempts.filter((a) => a.solved_on === todayISO() && isSolved(a)).length;
   const score = training
     ? readiness(attempts, training.reviews, training.mistakes, target).total
     : 0;
