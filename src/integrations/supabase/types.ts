@@ -140,6 +140,38 @@ export type Database = {
         }
         Relationships: []
       }
+      discussions: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          problem_id: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          problem_id: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          problem_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discussions_problem_id_fkey"
+            columns: ["problem_id"]
+            isOneToOne: false
+            referencedRelation: "problems"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       duo_signals: {
         Row: {
           created_at: string
@@ -581,6 +613,97 @@ export type Database = {
           topics?: string[]
         }
         Relationships: []
+      }
+      shared_problems: {
+        Row: {
+          created_at: string
+          from_user: string
+          id: string
+          message: string | null
+          problem_id: string
+          share_date: string
+          status: string
+          to_user: string
+        }
+        Insert: {
+          created_at?: string
+          from_user: string
+          id?: string
+          message?: string | null
+          problem_id: string
+          share_date?: string
+          status?: string
+          to_user: string
+        }
+        Update: {
+          created_at?: string
+          from_user?: string
+          id?: string
+          message?: string | null
+          problem_id?: string
+          share_date?: string
+          status?: string
+          to_user?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shared_problems_problem_id_fkey"
+            columns: ["problem_id"]
+            isOneToOne: false
+            referencedRelation: "problems"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      submissions: {
+        Row: {
+          approach: string | null
+          code: string
+          created_at: string
+          id: string
+          intuition: string | null
+          language: string
+          problem_id: string
+          space_complexity: string | null
+          time_complexity: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approach?: string | null
+          code?: string
+          created_at?: string
+          id?: string
+          intuition?: string | null
+          language?: string
+          problem_id: string
+          space_complexity?: string | null
+          time_complexity?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approach?: string | null
+          code?: string
+          created_at?: string
+          id?: string
+          intuition?: string | null
+          language?: string
+          problem_id?: string
+          space_complexity?: string | null
+          time_complexity?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submissions_problem_id_fkey"
+            columns: ["problem_id"]
+            isOneToOne: false
+            referencedRelation: "problems"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_achievements: {
         Row: {
