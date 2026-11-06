@@ -3,9 +3,8 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Zap, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input, Select, SelectItem } from '@/components/ui/select';
 
-const DEFAULT_MESSAGES = [
+const MESSAGES = [
   'Let’s push through!',
   'You’ve got this!',
   'Keep coding, the finish line is near!',
@@ -19,8 +18,8 @@ type Props = {
 
 export const NudgeButton: React.FC<Props> = ({ group, senderId }) => {
   const [open, setOpen] = useState(false);
-  const [target, setTarget] = useState<string>(''); // empty = all
-  const [msg, setMsg] = useState<string>(DEFAULT_MESSAGES[0]);
+  const [targetId, setTargetId] = useState<string>(''); // empty = all members
+  const [msg, setMsg] = useState<string>(MESSAGES[0]);
   const [sending, setSending] = useState(false);
 
   const send = async () => {
@@ -28,7 +27,7 @@ export const NudgeButton: React.FC<Props> = ({ group, senderId }) => {
     await supabase.from('nudges').insert({
       group_id: group.id,
       sender_id: senderId,
-      target_id: target || null,
+      target_id: targetId || null,
       message: msg,
     });
     setSending(false);
@@ -45,8 +44,8 @@ export const NudgeButton: React.FC<Props> = ({ group, senderId }) => {
           <label className="block text-xs font-medium mb-1">To (optional)</label>
           <select
             className="w-full border rounded px-2 py-1 mb-2 text-sm"
-            value={target}
-            onChange={e => setTarget(e.target.value)}
+            value={targetId}
+            onChange={e => setTargetId(e.target.value)}
           >
             <option value="">All members</option>
             {group.members.map(m => (
@@ -59,8 +58,8 @@ export const NudgeButton: React.FC<Props> = ({ group, senderId }) => {
             value={msg}
             onChange={e => setMsg(e.target.value)}
           >
-            {DEFAULT_MESSAGES.map(d => (
-              <option key={d} value={d}>{d}</option>
+            {MESSAGES.map(m => (
+              <option key={m} value={m}>{m}</option>
             ))}
           </select>
           <Button className="w-full" onClick={send} disabled={sending}>

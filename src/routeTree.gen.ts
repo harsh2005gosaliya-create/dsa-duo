@@ -17,6 +17,8 @@ import { Route as AuthenticatedAchievementsRouteImport } from './routes/_authent
 import { Route as AuthenticatedAnalyticsRouteImport } from './routes/_authenticated/analytics'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDuoRouteImport } from './routes/_authenticated/duo'
+import { Route as AuthenticatedForgotPasswordRouteImport } from './routes/_authenticated/forgot-password'
+import { Route as AuthenticatedGroupRouteImport } from './routes/_authenticated/group'
 import { Route as AuthenticatedMissionRouteImport } from './routes/_authenticated/mission'
 import { Route as AuthenticatedMockOaRouteImport } from './routes/_authenticated/mock-oa'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
@@ -65,6 +67,17 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
 const AuthenticatedDuoRoute = AuthenticatedDuoRouteImport.update({
   id: '/duo',
   path: '/duo',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedForgotPasswordRoute =
+  AuthenticatedForgotPasswordRouteImport.update({
+    id: '/forgot-password',
+    path: '/forgot-password',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedGroupRoute = AuthenticatedGroupRouteImport.update({
+  id: '/group',
+  path: '/group',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMissionRoute = AuthenticatedMissionRouteImport.update({
@@ -122,6 +135,8 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AuthenticatedAnalyticsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/duo': typeof AuthenticatedDuoRoute
+  '/forgot-password': typeof AuthenticatedForgotPasswordRoute
+  '/group': typeof AuthenticatedGroupRoute
   '/mission': typeof AuthenticatedMissionRoute
   '/mock-oa': typeof AuthenticatedMockOaRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
@@ -140,6 +155,8 @@ export interface FileRoutesByTo {
   '/analytics': typeof AuthenticatedAnalyticsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/duo': typeof AuthenticatedDuoRoute
+  '/forgot-password': typeof AuthenticatedForgotPasswordRoute
+  '/group': typeof AuthenticatedGroupRoute
   '/mission': typeof AuthenticatedMissionRoute
   '/mock-oa': typeof AuthenticatedMockOaRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
@@ -160,6 +177,8 @@ export interface FileRoutesById {
   '/_authenticated/analytics': typeof AuthenticatedAnalyticsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/duo': typeof AuthenticatedDuoRoute
+  '/_authenticated/forgot-password': typeof AuthenticatedForgotPasswordRoute
+  '/_authenticated/group': typeof AuthenticatedGroupRoute
   '/_authenticated/mission': typeof AuthenticatedMissionRoute
   '/_authenticated/mock-oa': typeof AuthenticatedMockOaRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
@@ -180,6 +199,8 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/dashboard'
     | '/duo'
+    | '/forgot-password'
+    | '/group'
     | '/mission'
     | '/mock-oa'
     | '/onboarding'
@@ -198,6 +219,8 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/dashboard'
     | '/duo'
+    | '/forgot-password'
+    | '/group'
     | '/mission'
     | '/mock-oa'
     | '/onboarding'
@@ -217,6 +240,8 @@ export interface FileRouteTypes {
     | '/_authenticated/analytics'
     | '/_authenticated/dashboard'
     | '/_authenticated/duo'
+    | '/_authenticated/forgot-password'
+    | '/_authenticated/group'
     | '/_authenticated/mission'
     | '/_authenticated/mock-oa'
     | '/_authenticated/onboarding'
@@ -293,6 +318,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDuoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/forgot-password': {
+      id: '/_authenticated/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof AuthenticatedForgotPasswordRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/group': {
+      id: '/_authenticated/group'
+      path: '/group'
+      fullPath: '/group'
+      preLoaderRoute: typeof AuthenticatedGroupRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/mission': {
       id: '/_authenticated/mission'
       path: '/mission'
@@ -364,6 +403,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAnalyticsRoute: typeof AuthenticatedAnalyticsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDuoRoute: typeof AuthenticatedDuoRoute
+  AuthenticatedForgotPasswordRoute: typeof AuthenticatedForgotPasswordRoute
+  AuthenticatedGroupRoute: typeof AuthenticatedGroupRoute
   AuthenticatedMissionRoute: typeof AuthenticatedMissionRoute
   AuthenticatedMockOaRoute: typeof AuthenticatedMockOaRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
@@ -380,6 +421,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAnalyticsRoute: AuthenticatedAnalyticsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDuoRoute: AuthenticatedDuoRoute,
+  AuthenticatedForgotPasswordRoute: AuthenticatedForgotPasswordRoute,
+  AuthenticatedGroupRoute: AuthenticatedGroupRoute,
   AuthenticatedMissionRoute: AuthenticatedMissionRoute,
   AuthenticatedMockOaRoute: AuthenticatedMockOaRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
