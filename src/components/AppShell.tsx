@@ -39,6 +39,8 @@ const NAV = [
 
 const MOBILE_NAV = NAV;
 
+import { Footer } from "@/components/Footer";
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: profile } = useProfile();
@@ -110,6 +112,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
+        <Footer />
 
         <div className="space-y-0.5 border-t border-sidebar-border px-3 py-3">
           <Link
@@ -177,6 +180,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           );
         })}
       </nav>
+        <Footer />
     </div>
   );
 }
